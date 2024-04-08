@@ -1,7 +1,7 @@
-import 'dart:convert';
 
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 
 class Zealgrid {
   static Zealgrid? _this;
@@ -12,9 +12,7 @@ class Zealgrid {
   static final DatabaseReference _database = FirebaseDatabase.instance.ref();
 
   static Zealgrid getInstance({String path = ''}) {
-    if (_this == null) {
-      _this = Zealgrid._(path: path);
-    }
+    _this ??= Zealgrid._(path: path);
     return _this!;
   }
 
@@ -24,7 +22,6 @@ class Zealgrid {
 
   Future<String?> getString(String key) async {
     try {
-      debugPrint('PATH : ${path}/${key}');
       DataSnapshot snapshot = await _database.child(path).child(key).get();
       if (snapshot.value != null) {
         return snapshot.value.toString();
@@ -38,7 +35,6 @@ class Zealgrid {
   }
 
   Future<int?> getInt(String key) async {
-    debugPrint('PATH : ${path}/${key}');
 
     try {
       DataSnapshot snapshot = await _database.child(path).child(key).get();
@@ -54,7 +50,6 @@ class Zealgrid {
   }
 
   Future<bool?> getBool(String key) async {
-    debugPrint('PATH : ${path}/${key}');
 
     try {
       DataSnapshot snapshot = await _database.child(path).child(key).get();
@@ -71,49 +66,43 @@ class Zealgrid {
 
   Future<Map<String, dynamic>?> getObject(String key) async {
     try {
-      debugPrint('PATH : ${path}/${key}');
 
       DataSnapshot snapshot = await _database.child(path).child(key).get();
-      debugPrint('PATH :${snapshot.value != null} ${snapshot.value is Map<
-          String,
-          dynamic>}\n ${snapshot.value}');
 
       if (snapshot.value != null && snapshot.value is Map) {
         Map<String, dynamic> jsonData = {};
         (snapshot.value as Map).forEach((key, value) {
-          jsonData['${key}'] = value;
+          jsonData['$key'] = value;
         });
         return  jsonData;
       }
 
       return null; // Return null if the key doesn't exist or has no value
     } catch (e) {
-      print('Error fetching data: $e');
+      if (kDebugMode) {
+        print('Error fetching data: $e');
+      }
       return null; // Return null in case of any error
     }
   }
 
   Future<List<Map<String, dynamic>>> getList(String key) async {
     try {
-      debugPrint('PATH : ${path}/${key}');
 
       DataSnapshot snapshot = await _database.child(path).child(key).get();
-      debugPrint('PATH :${snapshot.value != null} ${snapshot.value
-          .runtimeType}\n ${snapshot.value}');
-      debugPrint('runtimeType Step1 ${snapshot.value.runtimeType}');
 
       if (snapshot.value != null && snapshot.value is List) {
 
         // Convert dataMap to Map<String, dynamic>
         List<Map<String, dynamic>> resultList = [];
-        (snapshot.value as List)!.forEach((ele) {
+        for (var ele in (snapshot.value as List)) {
           Map<String, dynamic> jsonData = {};
           Map dataMap = ele as Map;
           dataMap.forEach((key, value) {
-            jsonData['${key}'] = value;
+            jsonData['$key'] = value;
           });
           resultList.add(jsonData);
-        });
+        }
         debugPrint('runtimeType Step3 ${resultList.length}');
 
         return resultList;
@@ -121,7 +110,9 @@ class Zealgrid {
         return [];
       }
     } catch (e) {
-      print('Error fetching data: $e');
+      if (kDebugMode) {
+        print('Error fetching data: $e');
+      }
       return []; // Return an empty list in case of any error
     }
   }
