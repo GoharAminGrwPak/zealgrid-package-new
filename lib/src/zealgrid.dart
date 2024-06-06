@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:nativewrappers/_internal/vm/lib/mirrors_patch.dart';
 
 import 'package:firebase_database/firebase_database.dart';
@@ -6,6 +7,9 @@ import 'package:flutter/foundation.dart';
 class Zealgrid {
   final String path;
   final Map<String, dynamic> _data = {};
+  final StreamController<Map<String, dynamic>> _dataStreamController = StreamController<Map<String, dynamic>>.broadcast();
+
+  Stream<Map<String, dynamic>> get dataStream => _dataStreamController.stream;
 
   Zealgrid._({this.path = ''});
 
@@ -14,6 +18,7 @@ class Zealgrid {
   static Future<Zealgrid> getInstance({String path = ''}) async {
     Zealgrid instance = Zealgrid._(path: path);
     await instance._fetchData();
+    instance._subscribeToDataChanges();
     return instance;
   }
 
@@ -21,13 +26,25 @@ class Zealgrid {
     try {
       DataSnapshot snapshot = await _database.child(path).get();
       if (snapshot.value != null && snapshot.value is Map) {
+        _data.clear();
         _data.addAll(Map<String, dynamic>.from(snapshot.value as Map));
+        _dataStreamController.add(_data);
       }
     } catch (e) {
       if (kDebugMode) {
         print('Error fetching data: $e');
       }
     }
+  }
+
+  void _subscribeToDataChanges() {
+    _database.child(path).onValue.listen((event) {
+      if (event.snapshot.value != null && event.snapshot.value is Map) {
+        _data.clear();
+        _data.addAll(Map<String, dynamic>.from(event.snapshot.value as Map));
+        _dataStreamController.add(_data);
+      }
+    });
   }
 
   dynamic _getProperty(String propertyName) {
