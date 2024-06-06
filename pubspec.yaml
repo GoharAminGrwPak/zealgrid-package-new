@@ -1,6 +1,6 @@
 name: zealgrid
 description: A Flutter package that simplifies accessing and retrieving data from a Firebase Realtime Database using a hierarchical path structure. Zealgrid provides dynamic getter methods and automatic data caching for efficient data retrieval.
-version: 1.0.1
+version: 1.0.2
 homepage: https://github.com/manipoint
 repository: https://github.com/Zealtouch/zealgrid
 
