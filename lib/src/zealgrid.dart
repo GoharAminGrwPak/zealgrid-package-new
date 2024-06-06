@@ -1,119 +1,47 @@
-
 import 'package:firebase_database/firebase_database.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 
 class Zealgrid {
-  static Zealgrid? _this;
   final String path;
+  final Map<String, dynamic> _data = {};
 
   Zealgrid._({this.path = ''});
 
   static final DatabaseReference _database = FirebaseDatabase.instance.ref();
 
   static Zealgrid getInstance({String path = ''}) {
-    _this ??= Zealgrid._(path: path);
-    return _this!;
+    return Zealgrid._(path: path);
   }
 
-  Zealgrid child(String child) {
-    return Zealgrid._(path: '$path/$child');
+  Zealgrid operator [](String key) {
+    return Zealgrid._(path: '$path/$key');
   }
 
-  Future<String?> getString(String key) async {
-    try {
-      DataSnapshot snapshot = await _database.child(path).child(key).get();
-      if (snapshot.value != null) {
-        return snapshot.value.toString();
-      } else {
-        return null; // Return null if the key doesn't exist or has no value
-      }
-    } catch (e) {
-      print('Error fetching data: $e');
-      return null; // Return null in case of any error
-    }
-  }
-
-  Future<int?> getInt(String key) async {
-
-    try {
-      DataSnapshot snapshot = await _database.child(path).child(key).get();
-      if (snapshot.value != null) {
-        return int.tryParse('${snapshot.value}');
-      } else {
-        return null; // Return null if the key doesn't exist or has no value
-      }
-    } catch (e) {
-      print('Error fetching data: $e');
-      return null; // Return null in case of any error
-    }
-  }
-
-  Future<bool?> getBool(String key) async {
-
-    try {
-      DataSnapshot snapshot = await _database.child(path).child(key).get();
-      if (snapshot.value != null) {
-        return bool.tryParse('${snapshot.value}');
-      } else {
-        return null; // Return null if the key doesn't exist or has no value
-      }
-    } catch (e) {
-      print('Error fetching data: $e');
-      return null; // Return null in case of any error
-    }
-  }
-
-  Future<Map<String, dynamic>?> getObject(String key) async {
-    try {
-
-      DataSnapshot snapshot = await _database.child(path).child(key).get();
-
-      if (snapshot.value != null && snapshot.value is Map) {
-        Map<String, dynamic> jsonData = {};
-        (snapshot.value as Map).forEach((key, value) {
-          jsonData['$key'] = value;
-        });
-        return  jsonData;
-      }
-
-      return null; // Return null if the key doesn't exist or has no value
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error fetching data: $e');
-      }
-      return null; // Return null in case of any error
-    }
-  }
-
-  Future<List<Map<String, dynamic>>> getList(String key) async {
-    try {
-
-      DataSnapshot snapshot = await _database.child(path).child(key).get();
-
-      if (snapshot.value != null && snapshot.value is List) {
-
-        // Convert dataMap to Map<String, dynamic>
-        List<Map<String, dynamic>> resultList = [];
-        for (var ele in (snapshot.value as List)) {
-          Map<String, dynamic> jsonData = {};
-          Map dataMap = ele as Map;
-          dataMap.forEach((key, value) {
-            jsonData['$key'] = value;
-          });
-          resultList.add(jsonData);
+  Future<void> _fetchData() async {
+    if (_data.isEmpty) {
+      try {
+        DataSnapshot snapshot = await _database.child(path).get();
+        if (snapshot.value != null && snapshot.value is Map) {
+          _data.addAll(Map<String, dynamic>.from(snapshot.value as Map));
         }
-        debugPrint('runtimeType Step3 ${resultList.length}');
-
-        return resultList;
-      } else {
-        return [];
+      } catch (e) {
+        if (kDebugMode) {
+          print('Error fetching data: $e');
+        }
       }
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error fetching data: $e');
-      }
-      return []; // Return an empty list in case of any error
     }
   }
+
+  Future<T?> _getValue<T>(String key) async {
+    await _fetchData();
+    return _data[key] as T?;
+  }
+
+  Future<String?> getString(String key) async => await _getValue<String>(key);
+  Future<int?> getInt(String key) async => await _getValue<int>(key);
+  Future<bool?> getBool(String key) async => await _getValue<bool>(key);
+  Future<Map<String, dynamic>?> getObject(String key) async => await _getValue<Map<String, dynamic>>(key);
+  Future<List<dynamic>?> getList(String key) async => await _getValue<List<dynamic>>(key);
+
+  Future<dynamic> getValue(String key) async => await _getValue(key);
 }
