@@ -1,73 +1,113 @@
-import 'dart:async';
-import 'dart:nativewrappers/_internal/vm/lib/mirrors_patch.dart';
-
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/foundation.dart';
 
 class Zealgrid {
   final String path;
-  final Map<String, dynamic> _data = {};
-  final StreamController<Map<String, dynamic>> _dataStreamController = StreamController<Map<String, dynamic>>.broadcast();
-
-  Stream<Map<String, dynamic>> get dataStream => _dataStreamController.stream;
 
   Zealgrid._({this.path = ''});
 
   static final DatabaseReference _database = FirebaseDatabase.instance.ref();
 
-  static Future<Zealgrid> getInstance({String path = ''}) async {
-    Zealgrid instance = Zealgrid._(path: path);
-    await instance._fetchData();
-    instance._subscribeToDataChanges();
-    return instance;
+  static final Map<String, Zealgrid> _instances = {};
+
+  static Zealgrid getInstance({String path = ''}) {
+    if (_instances.containsKey(path)) {
+      return _instances[path]!;
+    } else {
+      Zealgrid instance = Zealgrid._(path: path);
+      _instances[path] = instance;
+      return instance;
+    }
   }
 
-  Future<void> _fetchData() async {
+  Zealgrid child(String child) {
+    return Zealgrid._(path: '$path/$child');
+  }
+
+  Future<String?> getString(String key) async {
     try {
-      DataSnapshot snapshot = await _database.child(path).get();
+      DataSnapshot snapshot = await _database.child(path).child(key).get();
+      if (snapshot.value != null) {
+        return snapshot.value.toString();
+      } else {
+        return null;
+      }
+    } catch (e) {
+      print('Error fetching data: $e');
+      return null;
+    }
+  }
+
+  Future<int?> getInt(String key) async {
+    try {
+      DataSnapshot snapshot = await _database.child(path).child(key).get();
+      if (snapshot.value != null) {
+        return int.tryParse('${snapshot.value}');
+      } else {
+        return null;
+      }
+    } catch (e) {
+      print('Error fetching data: $e');
+      return null;
+    }
+  }
+
+  Future<bool?> getBool(String key) async {
+    try {
+      DataSnapshot snapshot = await _database.child(path).child(key).get();
+      if (snapshot.value != null) {
+        return bool.tryParse('${snapshot.value}');
+      } else {
+        return null;
+      }
+    } catch (e) {
+      print('Error fetching data: $e');
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>?> getObject(String key) async {
+    try {
+      DataSnapshot snapshot = await _database.child(path).child(key).get();
       if (snapshot.value != null && snapshot.value is Map) {
-        _data.clear();
-        _data.addAll(Map<String, dynamic>.from(snapshot.value as Map));
-        _dataStreamController.add(_data);
+        Map<String, dynamic> jsonData = {};
+        (snapshot.value as Map).forEach((key, value) {
+          jsonData['$key'] = value;
+        });
+        return jsonData;
+      }
+      return null;
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error fetching data: $e');
+      }
+      return null;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getList(String key) async {
+    try {
+      DataSnapshot snapshot = await _database.child(path).child(key).get();
+      if (snapshot.value != null && snapshot.value is List) {
+        List<Map<String, dynamic>> resultList = [];
+        for (var ele in (snapshot.value as List)) {
+          Map<String, dynamic> jsonData = {};
+          Map dataMap = ele as Map;
+          dataMap.forEach((key, value) {
+            jsonData['$key'] = value;
+          });
+          resultList.add(jsonData);
+        }
+        debugPrint('runtimeType Step3 ${resultList.length}');
+        return resultList;
+      } else {
+        return [];
       }
     } catch (e) {
       if (kDebugMode) {
         print('Error fetching data: $e');
       }
+      return [];
     }
-  }
-
-  void _subscribeToDataChanges() {
-    _database.child(path).onValue.listen((event) {
-      if (event.snapshot.value != null && event.snapshot.value is Map) {
-        _data.clear();
-        _data.addAll(Map<String, dynamic>.from(event.snapshot.value as Map));
-        _dataStreamController.add(_data);
-      }
-    });
-  }
-
-  dynamic _getProperty(String propertyName) {
-    List<String> properties = propertyName.split('.');
-    dynamic currentData = _data;
-
-    for (String property in properties) {
-      if (currentData is Map<String, dynamic> && currentData.containsKey(property)) {
-        currentData = currentData[property];
-      } else {
-        throw Exception('Property not found: $propertyName');
-      }
-    }
-
-    return currentData;
-  }
-
-  @override
-  noSuchMethod(Invocation invocation) {
-    if (invocation.isGetter) {
-      final propertyName = MirrorSystem.getName(invocation.memberName);
-      return _getProperty(propertyName);
-    }
-    return super.noSuchMethod(invocation);
   }
 }
